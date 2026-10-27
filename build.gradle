@@ -16,7 +16,7 @@ plugins {
 }
 
 group = 'io.pfuenzle.dexweaver'
-version = '2.1.3'
+version = '2.1.4'
 
 ext.mainArtifact = 'dexweaver-gradle'
 ext.artifactName = 'DexWeaver-gradle'

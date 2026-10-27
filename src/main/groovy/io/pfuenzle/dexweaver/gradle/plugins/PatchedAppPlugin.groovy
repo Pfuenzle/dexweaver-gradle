@@ -17,7 +17,7 @@ import io.pfuenzle.dexweaver.gradle.helpers.VariantHelper
 import io.pfuenzle.dexweaver.gradle.extensions.PatchedAppExtension
 import io.pfuenzle.dexweaver.gradle.tasks.CollectDexTask
 import io.pfuenzle.dexweaver.gradle.tasks.DexpatcherTask
-
+import io.pfuenzle.dexweaver.gradle.tasks.MappingCheckTask
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.AppPlugin
 import com.android.build.gradle.api.ApplicationVariant
@@ -57,6 +57,8 @@ class PatchedAppPlugin extends AbstractPatcherPlugin<PatchedAppExtension, AppExt
         // Workaround for compiler bug.
         def project = this.project
 
+        def mappingChecks = []
+
         // Patch the bytecode of the source application.
         androidVariants.all { ApplicationVariant variant ->
             def packageApplication = variant.packageApplicationProvider
@@ -67,6 +69,10 @@ class PatchedAppPlugin extends AbstractPatcherPlugin<PatchedAppExtension, AppExt
             def patchDex = project.tasks.register(
                     StringHelper.appendCapitalized(TaskNames.PATCH_DEX_PREFIX, variant.name),
                     DexpatcherTask)
+            def mappingCheck = project.tasks.register(
+                    StringHelper.appendCapitalized('checkMappings', variant.name),
+                    MappingCheckTask)
+            mappingChecks.add(mappingCheck)
             def prePackage = project.tasks.register(
                     StringHelper.appendCapitalized(TaskNames.PRE_PACKAGE_PREFIX, variant.name))
             variant.assembleProvider.configure {
@@ -98,7 +104,15 @@ class PatchedAppPlugin extends AbstractPatcherPlugin<PatchedAppExtension, AppExt
                 it.outputDir.set project.layout.buildDirectory.dir(BuildDir.DIR_PATCH_DEX + '/' + variant.dirName)
                 return
             }
-
+            mappingCheck.configure {
+                it.description = "Checks all DexWeaver @DexFinder mappings for the variant."
+                it.group = TASK_GROUP_NAME
+                it.source.set project.layout.buildDirectory.dir(BuildDir.DIR_DECODED_APP)
+                it.patch.set project.layout.buildDirectory.dir(BuildDir.DIR_PATCH_DEX + '/' + variant.dirName)
+                it.dependsOn provideDecodedApp
+                it.dependsOn collectDex
+                return
+            }
             // Patch the bytecode of the source application using the collected dex files.
             patchDex.configure {
                 it.description = "Patches the bytecode of the source application."
@@ -136,6 +150,11 @@ class PatchedAppPlugin extends AbstractPatcherPlugin<PatchedAppExtension, AppExt
                 it.dependsOn prePackage
                 return
             }
+        }
+        project.tasks.register('checkMappings') {
+            it.description = 'Checks all DexWeaver @DexFinder mappings for every application variant.'
+            it.group = TASK_GROUP_NAME
+            it.dependsOn mappingChecks
         }
 
         project.afterEvaluate {

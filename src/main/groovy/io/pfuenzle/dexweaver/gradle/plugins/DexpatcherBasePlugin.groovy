@@ -22,6 +22,7 @@ import io.pfuenzle.dexweaver.gradle.tasks.AbstractDex2jarTask
 import io.pfuenzle.dexweaver.gradle.tasks.AbstractJavaExecTask
 import io.pfuenzle.dexweaver.gradle.tasks.BuildApkTask
 import io.pfuenzle.dexweaver.gradle.tasks.DecodeApkTask
+import io.pfuenzle.dexweaver.gradle.tasks.MappingCheckTask
 import io.pfuenzle.dexweaver.gradle.tasks.Dex2jarTask
 import io.pfuenzle.dexweaver.gradle.tasks.DexpatcherTask
 
@@ -107,6 +108,11 @@ class DexpatcherBasePlugin implements Plugin<Project> {
             it.logSourcePath.set dexpatcher.logSourcePath
             it.logSourcePathRoot.set dexpatcher.logSourcePathRoot
             it.logStats.set dexpatcher.logStats
+        }
+
+        project.tasks.withType(MappingCheckTask).configureEach {
+            setupToolTask it, dexpatcher
+            it.annotationPackage.set dexpatcher.annotationPackage
         }
 
         project.tasks.withType(AbstractApktoolTask).configureEach {

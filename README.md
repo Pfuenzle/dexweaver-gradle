@@ -66,16 +66,28 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.Pfuenzle.dexweaver-gradle:dexweaver-gradle:v2.1.3'
+    implementation 'com.github.Pfuenzle.dexweaver-gradle:dexweaver-gradle:v2.1.4'
 }
 ```
 
 ```gradle
 plugins {
-    id 'io.pfuenzle.dexweaver.base' version 'v2.1.3'
+    id 'io.pfuenzle.dexweaver.base' version 'v2.1.4'
 }
 ```
 
 The version is the Git tag name, so it always carries the `v` prefix.
+
+### Mapping checks
+
+The patched-application plugin creates one finder validation task per Android variant:
+
+```sh
+./gradlew :app:checkMappingsRelease
+```
+
+The task compiles the patch sources but does not package or sign an APK. It validates every
+`@DexFinder` against the decoded source APK, prints the resolved source member for each mapping,
+and fails with every missing class, method, or field. `checkMappings` aggregates all variants.
 
 DexWeaver is free software. (GPLv3+)
