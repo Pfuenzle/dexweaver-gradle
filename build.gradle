@@ -11,23 +11,25 @@
 plugins {
     id 'groovy'
     id 'java-gradle-plugin'
+    id 'maven-publish'
     id 'com.gradle.plugin-publish' version '0.12.0'
 }
 
-group = 'io.github.dexpatcher.dexpatcher-gradle'
-version = '2.1.0'
+group = 'io.pfuenzle.dexweaver'
+version = '2.1.3'
 
-ext.mainArtifact = 'dexpatcher-gradle'
-ext.artifactName = 'DexPatcher-gradle'
+ext.mainArtifact = 'dexweaver-gradle'
+ext.artifactName = 'DexWeaver-gradle'
 
 repositories {
     jcenter()
+    mavenCentral()
     google()
 }
 
 dependencies {
     implementation localGroovy()
-    compileOnly 'com.android.tools.build:gradle:3.4.0'
+    compileOnly 'com.android.tools.build:gradle:4.0.0'
 }
 
 compileGroovy {
@@ -41,98 +43,100 @@ afterEvaluate {
     archivesArtifacts.removeAll archivesArtifacts.findAll { it.classifier in ['javadoc', 'groovydoc'] }
 }
 
-gradlePlugin {
-
-    def idPrefix = 'io.github.dexpatcher.'
-    def classPrefix = 'lanchon.dexpatcher.gradle.plugins.'
-
-    plugins {
-
-        basePlugin {
-            id = idPrefix + 'base'
-            implementationClass = classPrefix + 'DexpatcherBasePlugin'
-        }
-
-        apkLibraryPlugin {
-            id = idPrefix + 'apk-library'
-            implementationClass = classPrefix + 'ApkLibraryPlugin'
-        }
-
-        patchedAppPlugin {
-            id = idPrefix + 'patched-application'
-            implementationClass = classPrefix + 'PatchedAppPlugin'
-        }
-
-        patchLibraryPlugin {
-            id = idPrefix + 'patch-library'
-            implementationClass = classPrefix + 'PatchLibraryPlugin'
-        }
-
-    }
-
-}
-
 pluginBundle {
 
-    def descriptionPrefix = 'DexPatcher is a toolchain for modifying Android applications at source-level using Java ' +
-            'and the full power of Android Studio. '
-    def descriptionSuffix = 'DexPatcher is free software. (GPLv3+)'
+    website = 'https://github.com/Pfuenzle/dexweaver-gradle'
+    vcsUrl = 'https://github.com/Pfuenzle/dexweaver-gradle'
 
-    website = 'https://dexpatcher.github.io/'
-    vcsUrl = 'https://github.com/DexPatcher/DexPatcher-gradle'
+    description = 'DexWeaver is a toolchain for modifying Android APK files at source-level using Java, ' +
+            'graphical resource editors, and the full power of Android Studio in all major platforms. ' +
+            'Fork of the DexPatcher toolchain.'
 
-    description = descriptionPrefix + descriptionSuffix
-
-    tags = ['dexpatcher', 'apktool', 'dex2jar', 'patch', 'modify', 'mod', 'reverse', 'engineer', 'reengineer',
-            'android', 'application', 'apk', 'dalvik', 'bytecode']
-
-    plugins {
-
-        basePlugin {
-            displayName = 'DexPatcher Base'
-            description = descriptionPrefix +
-                    'The DexPatcher Base plugin provides basic DexPatcher, Apktool and dex2jar tasks. ' +
-                    descriptionSuffix
-        }
-
-        apkLibraryPlugin {
-            displayName = 'DexPatcher APK Library'
-            description = descriptionPrefix +
-                    'The DexPatcher APK Library plugin processes a source application provided as an Android APK ' +
-                    'and produces a DexPatcher APK library. The library is used to create modified versions of the ' +
-                    'source application and includes its Dalvik bytecode and decoded manifest and resources. ' +
-                    descriptionSuffix
-        }
-
-        patchedAppPlugin {
-            displayName = 'DexPatcher Patched Application'
-            description = descriptionPrefix +
-                    'The DexPatcher Patched Application plugin produces a modified Android application by applying ' +
-                    'changes to code, manifest and resources of a source application provided as an Android APK or ' +
-                    'a DexPatcher APK library. ' +
-                    descriptionSuffix
-        }
-
-        patchLibraryPlugin {
-            displayName = 'DexPatcher Patch Library'
-            description = descriptionPrefix +
-                    'The DexPatcher Patch Library plugin produces a DexPatcher patch library that bundles compiled ' +
-                    'changes to code, manifest and resources of a source application without bundling any part of '  +
-                    'the application itself. The source application is provided as an Android APK or a DexPatcher ' +
-                    'APK library. DexPatcher patch libraries are similar in structure to Android libraries (AAR ' +
-                    'files). The changes bundled in a patch library are applied to its source application using the ' +
-                    'DexPatcher Patched Application plugin. Several patch libraries can be applied in the same step ' +
-                    'or their application can be serialized and chained. ' +
-                    descriptionSuffix
-        }
-
-    }
+    tags = ['android', 'application', 'apk', 'dexweaver', 'dexpatcher', 'apktool', 'dex2jar', 'patch', 'modify', 'reverse']
 
     mavenCoordinates {
         groupId = group
         artifactId = mainArtifact
     }
 
+}
+
+gradlePlugin {
+
+    plugins {
+
+        basePlugin {
+            id = 'io.pfuenzle.dexweaver.base'
+            implementationClass = 'io.pfuenzle.dexweaver.gradle.plugins.DexpatcherBasePlugin'
+            displayName = 'DexWeaver Base'
+            description = 'The DexWeaver Base plugin provides basic DexWeaver, Apktool and dex2jar tasks. ' +
+                    'DexWeaver is free software. (GPLv3+)'
+        }
+
+        apkLibraryPlugin {
+            id = 'io.pfuenzle.dexweaver.apk-library'
+            implementationClass = 'io.pfuenzle.dexweaver.gradle.plugins.ApkLibraryPlugin'
+            displayName = 'DexWeaver APK Library'
+            description = 'The DexWeaver APK Library plugin processes a source application provided as an Android APK ' +
+                    'and produces a DexWeaver APK library. The library is used to create modified versions of the ' +
+                    'source application and includes its Dalvik bytecode and decoded manifest and resources. ' +
+                    'DexWeaver is free software. (GPLv3+)'
+        }
+
+        patchedAppPlugin {
+            id = 'io.pfuenzle.dexweaver.patched-application'
+            implementationClass = 'io.pfuenzle.dexweaver.gradle.plugins.PatchedAppPlugin'
+            displayName = 'DexWeaver Patched Application'
+            description = 'The DexWeaver Patched Application plugin produces a modified Android application by applying ' +
+                    'changes to code, manifest and resources of a source application provided as an Android APK or ' +
+                    'a DexWeaver APK library. DexWeaver is free software. (GPLv3+)'
+        }
+
+        patchLibraryPlugin {
+            id = 'io.pfuenzle.dexweaver.patch-library'
+            implementationClass = 'io.pfuenzle.dexweaver.gradle.plugins.PatchLibraryPlugin'
+            displayName = 'DexWeaver Patch Library'
+            description = 'The DexWeaver Patch Library plugin produces a DexWeaver patch library that bundles compiled ' +
+                    'changes to code, manifest and resources of a source application without bundling any part of the '  +
+                    'application itself. The source application is provided as an Android APK or a DexWeaver APK library. ' +
+                    'DexWeaver patch libraries are similar in structure to Android libraries (AAR files). ' +
+                    'The changes bundled in a patch library are applied to its source application using the DexWeaver ' +
+                    'Patched Application plugin. Several patch libraries can be applied in the same step or their ' +
+                    'application can be serialized and chained. DexWeaver is free software. (GPLv3+)'
+        }
+
+    }
+
+}
+publishing {
+    publications {
+        dexweaverGradleTool(MavenPublication) {
+            artifactId = mainArtifact + '-tool'
+            from components.java
+            pom {
+                name = artifactName
+                description = 'DexWeaver Gradle plugin. Fork of the DexPatcher Gradle plugin.'
+                url = 'https://github.com/Pfuenzle/dexweaver-gradle'
+                licenses {
+                    license {
+                        name = 'GNU General Public License (version 3 or later)'
+                        url = 'https://www.gnu.org/licenses/gpl.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        name = 'pfuenzle'
+                        url = 'https://github.com/Pfuenzle'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/Pfuenzle/dexweaver-gradle.git'
+                    developerConnection = 'scm:git:ssh://github.com:Pfuenzle/dexweaver-gradle.git'
+                    url = 'https://github.com/Pfuenzle/dexweaver-gradle'
+                }
+            }
+        }
+    }
 }
 
 apply from: 'check-copyright.gradle'
