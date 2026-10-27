@@ -1,66 +1,107 @@
+/*
+ * DexPatcher - Copyright 2015-2020 Rodrigo Balerdi
+ * (GNU General Public License version 3 or later)
+ *
+ * DexPatcher is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published
+ * by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ */
+
 package lanchon.dexpatcher.gradle.tasks
 
 import groovy.transform.CompileStatic
-import lanchon.dexpatcher.gradle.Resolver
+
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 
 /*
+Apktool v2.4.0 - a tool for reengineering Android apk files
 usage: apktool [-q|--quiet OR -v|--verbose] d[ecode] [options] <file_apk>
-    --api <API>                    The numeric api-level of the file to generate, e.g. 14 for ICS.
- -b,--no-debug-info                don't write out debug info (.local, .param, .line, etc.)
- -d,--debug                        Decode in debug mode. Check project page for more info.
-    --debug-line-prefix <prefix>   Smali line prefix when decoding in debug mode. Default is "a=0;// ".
- -f,--force                        Force delete destination directory.
- -k,--keep-broken-res              Use if there was an error and some resources were dropped, e.g.
-                                   "Invalid config flags detected. Dropping resources", but you
-                                   want to decode them anyway, even with errors. You will have to
-                                   fix them manually before building.
- -m,--match-original               Keeps files to closest to original as possible. Prevents rebuild.
- -o,--output <dir>                 The name of folder that gets written. Default is apk.out
- -p,--frame-path <dir>             Uses framework files located in <dir>.
- -r,--no-res                       Do not decode resources.
- -s,--no-src                       Do not decode sources.
- -t,--frame-tag <tag>              Uses framework files tagged by <tag>.
+ -api,--api-level <API>   The numeric api-level of the file to generate, e.g. 14 for ICS.
+ -b,--no-debug-info       don't write out debug info (.local, .param, .line, etc.)
+ -f,--force               Force delete destination directory.
+    --force-manifest      Decode the APK's compiled manifest, even if decoding of resources is set to "false".
+ -k,--keep-broken-res     Use if there was an error and some resources were dropped, e.g.
+                          "Invalid config flags detected. Dropping resources", but you
+                          want to decode them anyway, even with errors. You will have to
+                          fix them manually before building.
+ -m,--match-original      Keeps files to closest to original as possible. Prevents rebuild.
+    --no-assets           Do not decode assets.
+ -o,--output <dir>        The name of folder that gets written. Default is apk.out
+ -p,--frame-path <dir>    Uses framework files located in <dir>.
+ -r,--no-res              Do not decode resources.
+ -s,--no-src              Do not decode sources.
+ -t,--frame-tag <tag>     Uses framework files tagged by <tag>.
 */
 
 @CompileStatic
-class DecodeApkTask extends ApktoolBaseTask {
+@CacheableTask
+class DecodeApkTask extends AbstractApktoolTask {
 
-    def apkFile
-    def outputDir
-    def frameworkDir
-    def frameworkTag
-    def apiLevel
-    @Input boolean decodeResources = true
-    @Input boolean decodeClasses = true
-    @Input boolean keepBrokenResources
+    @PathSensitive(PathSensitivity.NAME_ONLY)
+    @InputFile final RegularFileProperty apkFile = project.objects.fileProperty()
+    @OutputDirectory final DirectoryProperty outputDir = project.objects.directoryProperty()
 
-    @InputFile File getApkFile() { project.file(apkFile) }
-    @OutputDirectory File getOutputDir() { project.file(outputDir) }
-    @Optional @InputDirectory File getFrameworkDir() { Resolver.resolveNullableFile(project, frameworkDir) }
-    @Optional @Input String getFrameworkTag() { Resolver.resolve(frameworkTag) as String }
-    @Optional @Input Integer getApiLevel() { Resolver.resolve(apiLevel) as Integer }
+    @Optional @Input final Property<String> frameworkTag = project.objects.property(String)
+    @Input final Property<Integer> apiLevel = project.objects.property(Integer).value(0)
+    @Input final Property<Boolean> decodeAssets = project.objects.property(Boolean).value(true)
+    @Input final Property<Boolean> decodeResources = project.objects.property(Boolean).value(true)
+    @Input final Property<Boolean> decodeClasses = project.objects.property(Boolean).value(true)
+    @Input final Property<Boolean> forceDecodeManifest = project.objects.property(Boolean).value(false)
+    @Input final Property<Boolean> keepBrokenResources = project.objects.property(Boolean).value(false)
+    @Input final Property<Boolean> stripDebugInfo = project.objects.property(Boolean).value(false)
+    @Input final Property<Boolean> matchOriginal = project.objects.property(Boolean).value(false)
+
+    DecodeApkTask() {
+        super('decode')
+    }
 
     @Override List<String> getArgs() {
-        ArrayList<String> args = new ArrayList()
-        args.add('decode')
-        args.add('--force')
-        args.addAll(['--output', getOutputDir() as String])
-        if (getFrameworkDir()) args.addAll(['--frame-path', getFrameworkDir() as String])
-        def theFrameworkTag = getFrameworkTag()
-        if (theFrameworkTag) args.addAll(['--frame-tag', theFrameworkTag])
-        def theApiLevel = getApiLevel()
-        if (theApiLevel) args.addAll(['--api', theApiLevel as String])
-        if (!decodeResources) args.add('--no-res')
-        if (!decodeClasses) args.add('--no-src')
-        if (keepBrokenResources) args.add('--keep-broken-res')
-        args.addAll(getExtraArgs())
-        args.add(getApkFile() as String)
+
+        def args = super.getArgs()
+
+        args.addAll(['--output', outputDir.get() as String])
+
+        def fwTag = frameworkTag.orNull
+        if (fwTag) args.addAll(['--frame-tag', fwTag])
+        def api = apiLevel.get()
+        if (api) args.addAll(['--api-level', api as String])
+        if (!decodeAssets.get()) args.add('--no-assets')
+        if (!decodeResources.get()) args.add('--no-res')
+        if (!decodeClasses.get()) args.add('--no-src')
+        if (forceDecodeManifest.get()) args.add('--force-manifest')
+        if (keepBrokenResources.get()) args.add('--keep-broken-res')
+        if (stripDebugInfo.get()) args.add('--no-debug-info')
+        if (matchOriginal.get()) args.add('--match-original')
+
+        //if (forceOverwrite.get()) args.add('--force')
+
+        addExtraArgsTo args
+        args.add('--')
+
+        args.add(apkFile.get() as String)
+
         return args;
+
+    }
+
+    @Override protected void beforeExec() {
+        super.beforeExec()
+        deleteOutputFileOrDir outputDir.get()
+    }
+
+    @Override protected void afterExec() {
+        super.afterExec()
+        checkOutputDir outputDir.get()
     }
 
 }

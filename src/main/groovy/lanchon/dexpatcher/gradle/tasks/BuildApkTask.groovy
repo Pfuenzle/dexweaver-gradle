@@ -1,47 +1,95 @@
+/*
+ * DexPatcher - Copyright 2015-2020 Rodrigo Balerdi
+ * (GNU General Public License version 3 or later)
+ *
+ * DexPatcher is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published
+ * by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ */
+
 package lanchon.dexpatcher.gradle.tasks
 
 import groovy.transform.CompileStatic
-import lanchon.dexpatcher.gradle.Resolver
+
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 
 /*
+Apktool v2.4.0 - a tool for reengineering Android apk files
 usage: apktool [-q|--quiet OR -v|--verbose] b[uild] [options] <app_path>
  -a,--aapt <loc>         Loads aapt from specified location.
  -c,--copy-original      Copies original AndroidManifest.xml and META-INF. See project page for more info.
- -d,--debug              Builds in debug mode. Check project page for more info.
+ -d,--debug              Sets android:debuggable to "true" in the APK's compiled manifest
  -f,--force-all          Skip changes detection and build all files.
+ -nc,--no-crunch         Disable crunching of resource files during the build step.
  -o,--output <dir>       The name of apk that gets written. Default is dist/name.apk
  -p,--frame-path <dir>   Uses framework files located in <dir>.
+    --use-aapt2          Upgrades apktool to use experimental aapt2 binary.
 */
 
 @CompileStatic
-class BuildApkTask extends ApktoolBaseTask {
+@CacheableTask
+class BuildApkTask extends AbstractApktoolTask {
 
-    def inputDir
-    def apkFile
-    def frameworkDir
-    def aaptFile
-    @Input boolean forceRebuild = true
+    @PathSensitive(PathSensitivity.NONE)
+    @InputDirectory final DirectoryProperty inputDir = project.objects.directoryProperty()
+    @OutputFile final RegularFileProperty apkFile = project.objects.fileProperty()
 
-    @InputDirectory File getInputDir() { project.file(inputDir) }
-    @OutputFile File getApkFile() { project.file(apkFile) }
-    @Optional @InputDirectory File getFrameworkDir() { Resolver.resolveNullableFile(project, frameworkDir) }
-    @Optional @InputFile File getAaptFile() { Resolver.resolveNullableFile(project, aaptFile) }
+    @PathSensitive(PathSensitivity.NONE)
+    @Optional @InputFile final RegularFileProperty aaptFile = project.objects.fileProperty()
+
+    @Input final Property<Boolean> useAapt2 = project.objects.property(Boolean).value(false)
+    @Input final Property<Boolean> crunchResources = project.objects.property(Boolean).value(true)
+    @Input final Property<Boolean> copyOriginal = project.objects.property(Boolean).value(false)
+    @Input final Property<Boolean> forceDebuggableBuild = project.objects.property(Boolean).value(false)
+    @Input final Property<Boolean> forceCleanBuild = project.objects.property(Boolean).value(false)
+
+    BuildApkTask() {
+        super('build')
+    }
 
     @Override List<String> getArgs() {
-        ArrayList<String> args = new ArrayList()
-        args.add('build')
-        args.addAll(['--output', getApkFile() as String])
-        if (getFrameworkDir()) args.addAll(['--frame-path', getFrameworkDir() as String])
-        if (getAaptFile()) args.addAll(['--aapt', getAaptFile() as String])
-        if (forceRebuild) args.add('--force-all')
-        args.addAll(getExtraArgs())
-        args.add(getInputDir() as String)
+
+        def args = super.getArgs()
+
+        args.addAll(['--output', apkFile.get() as String])
+
+        def aapt = aaptFile.orNull
+        if (aapt) args.addAll(['--aapt', aapt as String])
+
+        if (useAapt2.get()) args.add('--use-aapt2')
+        if (!crunchResources.get()) args.add('--no-crunch')
+        if (copyOriginal.get()) args.add('--copy-original')
+        if (forceDebuggableBuild.get()) args.add('--debug')
+        if (forceCleanBuild.get()) args.add('--force-all')
+
+        addExtraArgsTo args
+        args.add('--')
+
+        args.add(inputDir.get() as String)
+
         return args;
+
+    }
+
+    @Override protected void beforeExec() {
+        super.beforeExec()
+        deleteOutputFileOrDir apkFile.get()
+    }
+
+    @Override protected void afterExec() {
+        super.afterExec()
+        checkOutputFile apkFile.get()
     }
 
 }
