@@ -8,4 +8,4 @@
  * or (at your option) any later version.
  */
 
-rootProject.name = 'dexpatcher-gradle'
+rootProject.name = 'dexweaver-gradle'
